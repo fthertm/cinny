@@ -1,7 +1,10 @@
-experiment
-dist
-node_modules
-devAssets
-
-.DS_Store
-.idea
+#experiment
+#dist
+#node_modules
+#devAssets
+#.DS_Store
+#.idea
+/*
+!/dist/
+!/dist/**
+!/wrangler.jsonc
