@@ -11,14 +11,11 @@ export function AuthFooter() {
       <Text
         as="a"
         size="T300"
-        href="https://github.com/ajbura/cinny/releases"
+        href="https://github.com/fthertm/matrix/releases"
         target="_blank"
         rel="noreferrer"
       >
         v4.12.7
-      </Text>
-      <Text as="a" size="T300" href="https://twitter.com/cinnyapp" target="_blank" rel="noreferrer">
-        Twitter
       </Text>
       <Text as="a" size="T300" href="https://matrix.org" target="_blank" rel="noreferrer">
         Powered by Matrix

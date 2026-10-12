@@ -1,0 +1,9 @@
+{
+  "name": "matrix",
+  "compatibility_date": "2026-10-11",
+  "workers_dev": false,
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
