@@ -131,6 +131,81 @@ function fetchConfig(token: string): RequestInit {
   };
 }
 
+/**
+ * Remote media (e.g. sticker packs from other servers) is fetched by our homeserver over
+ * federation. Bursts of requests to one remote server often end in 502/503/504, so requests to
+ * remote servers are limited per server and those statuses are retried with backoff.
+ * Media from the homeserver itself is not limited.
+ */
+const MEDIA_RETRY_STATUSES = [502, 503, 504];
+const MEDIA_MAX_RETRIES = 2;
+const MEDIA_RETRY_DELAY_MS = 800;
+const REMOTE_MEDIA_CONCURRENCY = 4;
+
+type Lane = { active: number; waiting: Array<() => void> };
+const remoteLanes = new Map<string, Lane>();
+
+async function withRemoteLane<T>(serverName: string, task: () => Promise<T>): Promise<T> {
+  const lane: Lane = remoteLanes.get(serverName) ?? { active: 0, waiting: [] };
+  remoteLanes.set(serverName, lane);
+
+  if (lane.active < REMOTE_MEDIA_CONCURRENCY) {
+    lane.active += 1;
+  } else {
+    await new Promise<void>((resolve) => {
+      lane.waiting.push(resolve);
+    });
+  }
+
+  try {
+    return await task();
+  } finally {
+    const next = lane.waiting.shift();
+    if (next) next(); // hand the slot over to the next waiting request
+    else lane.active -= 1;
+  }
+}
+
+// /_matrix/client/v1/media/{download|thumbnail}/{serverName}/{mediaId}
+function mediaServerName(url: string): string {
+  return new URL(url).pathname.split('/')[6] ?? '';
+}
+
+function isLocalServerName(serverName: string, baseUrl: string): boolean {
+  const { hostname } = new URL(baseUrl);
+  return hostname === serverName || hostname.endsWith(`.${serverName}`);
+}
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+async function fetchMedia(url: string, session: SessionInfo, attempt = 0): Promise<Response> {
+  const serverName = mediaServerName(url);
+  const send = () => fetch(url, fetchConfig(session.accessToken));
+
+  let res: Response | undefined;
+  let failure: unknown;
+  try {
+    res = await (isLocalServerName(serverName, session.baseUrl)
+      ? send()
+      : withRemoteLane(serverName, send));
+  } catch (e) {
+    failure = e;
+  }
+
+  if (res && !MEDIA_RETRY_STATUSES.includes(res.status)) return res;
+  if (attempt >= MEDIA_MAX_RETRIES) {
+    if (res) return res; // out of retries: hand back the last error response as is
+    throw failure;
+  }
+
+  res?.body?.cancel().catch(() => undefined);
+  await sleep(MEDIA_RETRY_DELAY_MS * 2 ** attempt + Math.random() * MEDIA_RETRY_DELAY_MS);
+  return fetchMedia(url, session, attempt + 1);
+}
+
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
@@ -142,7 +217,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const session = sessions.get(clientId);
   if (session) {
     if (validMediaRequest(url, session.baseUrl)) {
-      event.respondWith(fetch(url, fetchConfig(session.accessToken)));
+      event.respondWith(fetchMedia(url, session));
     }
     return;
   }
@@ -150,7 +225,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   event.respondWith(
     requestSessionWithTimeout(clientId).then((s) => {
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, fetchConfig(s.accessToken));
+        return fetchMedia(url, s);
       }
       return fetch(event.request);
     })
