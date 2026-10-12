@@ -20,6 +20,12 @@ export function AuthFooter() {
       <Text as="a" size="T300" href="https://matrix.org" target="_blank" rel="noreferrer">
         Powered by Matrix
       </Text>
+      <Text as="span" size="T300">
+        Developed with 🖤 by{' '}
+        <a href="https://fatihertem.com" target="_blank" rel="noreferrer">
+          Fatih Ertem
+        </a>
+      </Text>
     </Box>
   );
 }
