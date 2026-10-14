@@ -99,16 +99,16 @@ export function ReCaptchaStageDialog({ stageData, submitAuthDict, onCancel }: St
     <Dialog>
       <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
         <Box direction="Column" gap="100">
-          <Text size="H4">Doğrulama Gerekli</Text>
-          <Text>İşleme devam etmek için sunucu üzerindeki doğrulama penceresini açın.</Text>
+          <Text size="H4">Verification Required</Text>
+          <Text>Please open the verification popup to continue.</Text>
         </Box>
         <Button variant="Primary" fill="Solid" onClick={openFallback} disabled={waiting}>
           <Text as="span" size="B400">
-            {waiting ? 'Doğrulama bekleniyor...' : 'Doğrulama Penceresini Aç'}
+            {waiting ? 'Waiting for verification...' : 'Open Verification Popup'}
           </Text>
         </Button>
         {blocked && (
-          <Text size="T200">Tarayıcınız pop-up pencereyi engelledi. Lütfen bu site için pop-up izinlerini açın.</Text>
+          <Text size="T200">Please allow pop-ups for this site and try again.</Text>
         )}
       </Box>
     </Dialog>
